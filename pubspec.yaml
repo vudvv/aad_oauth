@@ -15,7 +15,7 @@ dependencies:
   js: any
   http: ^1.0.0
   pedantic: ^1.11.1
-  shared_preferences: ^2.1.1
+  shared_preferences: 2.3.5
   dartz: ^0.10.1
   equatable: ^2.0.5
 
