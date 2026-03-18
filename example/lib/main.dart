@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:aad_oauth/aad_oauth.dart';
 import 'package:aad_oauth/model/config.dart';
 import 'package:flutter/foundation.dart';
@@ -22,20 +24,24 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key? key, required this.title}) : super(key: key);
+  MyHomePage({super.key, required this.title});
   final String title;
 
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  State<MyHomePage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
   static final Config config = Config(
-      tenant: 'YOUR_TENANT_ID',
-      clientId: 'YOUR_CLIENT_ID',
-      scope: 'openid profile offline_access',
-      navigatorKey: navigatorKey,
-      loader: SizedBox());
+    tenant: 'YOUR_TENANT_ID',
+    clientId: 'YOUR_CLIENT_ID',
+    scope: 'openid profile offline_access',
+    navigatorKey: navigatorKey,
+    loader: SizedBox(),
+    appBar: AppBar(
+      title: Text('AAD OAuth Demo'),
+    ),
+  );
   final AadOAuth oauth = AadOAuth(config);
 
   @override

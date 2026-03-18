@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:aad_oauth/aad_oauth.dart';
 import 'package:aad_oauth/model/config.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +10,7 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class MyApp extends StatefulWidget {
   @override
-  _MyAppState createState() => _MyAppState();
+  State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
@@ -31,47 +33,62 @@ class _MyAppState extends State<MyApp> {
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key? key, required this.title}) : super(key: key);
+  MyHomePage({super.key, required this.title});
   final String title;
 
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  State<MyHomePage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
   static final Config configB2Ca = Config(
-      tenant: 'YOUR_TENANT_NAME',
-      clientId: 'YOUR_CLIENT_ID',
-      scope: 'YOUR_CLIENT_ID offline_access',
-      clientSecret: 'YOUR_CLIENT_SECRET',
-      isB2C: true,
-      navigatorKey: navigatorKey,
-      policy: 'YOUR_USER_FLOW___USER_FLOW_A',
-      tokenIdentifier: 'UNIQUE IDENTIFIER A',
-      loader: SizedBox());
+    tenant: 'YOUR_TENANT_NAME',
+    clientId: 'YOUR_CLIENT_ID',
+    scope: 'YOUR_CLIENT_ID offline_access',
+    clientSecret: 'YOUR_CLIENT_SECRET',
+    isB2C: true,
+    navigatorKey: navigatorKey,
+    policy: 'YOUR_USER_FLOW___USER_FLOW_A',
+    tokenIdentifier: 'UNIQUE IDENTIFIER A',
+    loader: SizedBox(),
+    appBar: AppBar(
+      title: Text('AAD OAuth Demo'),
+    ),
+  );
 
   static final Config configB2Cb = Config(
-      tenant: 'YOUR_TENANT_NAME',
-      clientId: 'YOUR_CLIENT_ID',
-      scope: 'YOUR_CLIENT_ID offline_access',
-      navigatorKey: navigatorKey,
-      clientSecret: 'YOUR_CLIENT_SECRET',
-      isB2C: true,
-      policy: 'YOUR_USER_FLOW___USER_FLOW_B',
-      tokenIdentifier: 'UNIQUE IDENTIFIER B',
-      loader: SizedBox());
+    tenant: 'YOUR_TENANT_NAME',
+    clientId: 'YOUR_CLIENT_ID',
+    scope: 'YOUR_CLIENT_ID offline_access',
+    navigatorKey: navigatorKey,
+    clientSecret: 'YOUR_CLIENT_SECRET',
+    isB2C: true,
+    policy: 'YOUR_USER_FLOW___USER_FLOW_B',
+    tokenIdentifier: 'UNIQUE IDENTIFIER B',
+    loader: SizedBox(),
+    appBar: AppBar(
+      title: Text('AAD OAuth Demo'),
+    ),
+    onPageFinished: (String url) {
+      log('Page finished url: $url');
+    },
+  );
 
   static final Config configB2Cc = Config(
-      tenant: 'YOUR_TENANT_NAME',
-      clientId: 'YOUR_CLIENT_ID',
-      scope: 'YOUR_CLIENT_ID offline_access',
-      navigatorKey: navigatorKey,
-      redirectUri: 'YOUR_REDIRECT_URL',
-      isB2C: true,
-      policy: 'YOUR_CUSTOM_POLICY',
-      tokenIdentifier: 'UNIQUE IDENTIFIER C',
-      customParameters: {'YOUR_CUSTOM_PARAMETER': 'CUSTOM_VALUE'},
-      loader: SizedBox());
+    tenant: 'YOUR_TENANT_NAME',
+    clientId: 'YOUR_CLIENT_ID',
+    scope: 'YOUR_CLIENT_ID offline_access',
+    navigatorKey: navigatorKey,
+    redirectUri: 'YOUR_REDIRECT_URL',
+    isB2C: true,
+    policy: 'YOUR_CUSTOM_POLICY',
+    tokenIdentifier: 'UNIQUE IDENTIFIER C',
+    customParameters: {'YOUR_CUSTOM_PARAMETER': 'CUSTOM_VALUE'},
+    loader: SizedBox(),
+    appBar: AppBar(
+      title: Text('AAD OAuth Demo'),
+    ),
+  );
 
   //You can have as many B2C flows as you want
 

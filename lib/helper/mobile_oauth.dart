@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:aad_oauth/helper/core_oauth.dart';
 import 'package:aad_oauth/model/config.dart';
 import 'package:aad_oauth/model/failure.dart';
@@ -13,6 +15,8 @@ class MobileOAuth extends CoreOAuth {
   final AuthStorage _authStorage;
   final RequestCode _requestCode;
   final RequestToken _requestToken;
+
+  Completer<String?>? _accessTokenCompleter;
 
   /// Instantiating MobileAadOAuth authentication.
   /// [config] Parameters according to official Microsoft Documentation.
@@ -38,10 +42,58 @@ class MobileOAuth extends CoreOAuth {
     return await _authorization(refreshIfAvailable: refreshIfAvailable);
   }
 
-  /// Retrieve cached OAuth Access Token.
+  /// Tries to silently login. will try to use the existing refresh token to get
+  /// a new token.
   @override
-  Future<String?> getAccessToken() async =>
-      (await _authStorage.loadTokenFromCache()).accessToken;
+  Future<Either<Failure, Token>> refreshToken() async {
+    var token = await _authStorage.loadTokenFromCache();
+
+    if (!token.hasValidAccessToken()) {
+      token.accessToken = null;
+    }
+
+    if (token.hasRefreshToken()) {
+      final result =
+          await _requestToken.requestRefreshToken(token.refreshToken!);
+      //If refresh token request throws an exception, we have to do
+      //a fullAuthFlow.
+      result.fold(
+        (l) => token.accessToken = null,
+        (r) => token = r,
+      );
+    }
+
+    await _authStorage.saveTokenToCache(token);
+    return Right(token);
+  }
+
+  /// Retrieve cached OAuth Access Token.
+  /// If access token is not valid it tries to refresh the token.
+  /// parallel can be made [getAccessToken] will make sure only one request
+  /// for refreshing token is made.
+  @override
+  Future<String?> getAccessToken() async {
+    if (_accessTokenCompleter != null) {
+      return _accessTokenCompleter?.future;
+    } else {
+      _accessTokenCompleter = Completer();
+    }
+
+    var token = await _authStorage.loadTokenFromCache();
+    String? accessToken;
+
+    if (token.hasValidAccessToken()) {
+      accessToken = token.accessToken;
+    } else {
+      await refreshToken();
+      token = await _authStorage.loadTokenFromCache();
+      accessToken = token.accessToken;
+    }
+
+    _accessTokenCompleter?.complete(accessToken);
+    _accessTokenCompleter = null;
+    return accessToken;
+  }
 
   /// Retrieve cached OAuth Id Token.
   @override
@@ -50,9 +102,11 @@ class MobileOAuth extends CoreOAuth {
 
   /// Perform Azure AD logout.
   @override
-  Future<void> logout() async {
+  Future<void> logout({bool showPopup = true, bool clearCookies = true}) async {
     await _authStorage.clear();
-    await _requestCode.clearCookies();
+    if (clearCookies) {
+      await _requestCode.clearCookies();
+    }
   }
 
   @override
@@ -89,13 +143,13 @@ class MobileOAuth extends CoreOAuth {
 
     if (!token.hasValidAccessToken()) {
       final result = await _performFullAuthFlow();
-      var failure;
+      Failure? failure;
       result.fold(
         (l) => failure = l,
         (r) => token = r,
       );
       if (failure != null) {
-        return Left(failure);
+        return Left(failure!);
       }
     }
 
@@ -108,8 +162,8 @@ class MobileOAuth extends CoreOAuth {
     var code = await _requestCode.requestCode();
     if (code == null) {
       return Left(AadOauthFailure(
-        ErrorType.AccessDeniedOrAuthenticationCanceled,
-        'Access denied or authentication canceled.',
+        errorType: ErrorType.accessDeniedOrAuthenticationCanceled,
+        message: 'Access denied or authentication canceled.',
       ));
     }
     return await _requestToken.requestToken(code);
@@ -117,10 +171,10 @@ class MobileOAuth extends CoreOAuth {
 
   Future<void> _removeOldTokenOnFirstLogin() async {
     var prefs = await SharedPreferences.getInstance();
-    final _keyFreshInstall = 'freshInstall';
-    if (!prefs.getKeys().contains(_keyFreshInstall)) {
+    final keyFreshInstall = 'freshInstall';
+    if (!prefs.getKeys().contains(keyFreshInstall)) {
       await logout();
-      await prefs.setBool(_keyFreshInstall, false);
+      await prefs.setBool(keyFreshInstall, false);
     }
   }
 }

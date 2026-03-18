@@ -26,6 +26,10 @@ class AadOAuth {
   Future<Either<Failure, Token>> login({bool refreshIfAvailable = false}) =>
       _coreOAuth.login(refreshIfAvailable: refreshIfAvailable);
 
+  /// Tries to silently login. will try to use the existing refresh token to get
+  /// a new token.
+  Future<Either<Failure, Token>> refreshToken() => _coreOAuth.refreshToken();
+
   /// Retrieve cached OAuth Access Token.
   Future<String?> getAccessToken() async => _coreOAuth.getAccessToken();
 
@@ -33,7 +37,8 @@ class AadOAuth {
   Future<String?> getIdToken() async => _coreOAuth.getIdToken();
 
   /// Perform Azure AD logout.
-  Future<void> logout() async => _coreOAuth.logout();
+  Future<void> logout({bool showWebPopup = true, bool clearCookies = true}) async =>
+      _coreOAuth.logout(showPopup: showWebPopup, clearCookies: clearCookies);
 
   /// Checks if MSAL has cached information
   Future<bool> get hasCachedAccountInformation async =>

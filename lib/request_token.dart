@@ -16,17 +16,17 @@ class RequestToken {
   RequestToken(this.config);
 
   Future<Either<Failure, Token>> requestToken(String code) async {
-    final _tokenRequest = TokenRequestDetails(config, code);
+    final tokenRequest = TokenRequestDetails(config, code);
     return await _sendTokenRequest(
-        _tokenRequest.url, _tokenRequest.params, _tokenRequest.headers);
+        tokenRequest.url, tokenRequest.params, tokenRequest.headers);
   }
 
   Future<Either<Failure, Token>> requestRefreshToken(
       String refreshToken) async {
-    final _tokenRefreshRequest =
+    final tokenRefreshRequest =
         TokenRefreshRequestDetails(config, refreshToken);
-    return await _sendTokenRequest(_tokenRefreshRequest.url,
-        _tokenRefreshRequest.params, _tokenRefreshRequest.headers);
+    return await _sendTokenRequest(tokenRefreshRequest.url,
+        tokenRefreshRequest.params, tokenRefreshRequest.headers);
   }
 
   Future<Either<Failure, Token>> _sendTokenRequest(String url,
@@ -38,11 +38,12 @@ class RequestToken {
         var token = Token.fromJson(tokenJson);
         return Right(token);
       }
-      return Left(
-          RequestFailure(ErrorType.InvalidJson, 'Token json is invalid'));
+      return Left(RequestFailure(
+          errorType: ErrorType.invalidJson, message: 'Token json is invalid'));
     } catch (e) {
       return Left(RequestFailure(
-          ErrorType.InvalidJson, 'Token json is invalid: ${e.toString()}'));
+          errorType: ErrorType.invalidJson,
+          message: 'Token json is invalid: ${e.toString()}'));
     }
   }
 }

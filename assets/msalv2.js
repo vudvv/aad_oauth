@@ -8,7 +8,8 @@ var aadOauth = (function () {
   const tokenRequest = {
     scopes: null,
     prompt: null,
-    extraQueryParameters: {}
+    extraQueryParameters: {},
+    loginHint: null
   };
 
   // Initialise the myMSALObj for the given client, authority and scope
@@ -44,6 +45,7 @@ var aadOauth = (function () {
 
      tokenRequest.extraQueryParameters = JSON.parse(config.customParameters);
      tokenRequest.prompt = config.prompt;
+     tokenRequest.loginHint = config.loginHint;
 
      myMSALObj = new msal.PublicClientApplication(msalConfig);
      // Register Callbacks for Redirect flow and record the task so we
@@ -57,6 +59,22 @@ var aadOauth = (function () {
   // Will return the authentication result on success and update the
   // global authResult variable.
   async function silentlyAcquireToken() {
+    try {
+      // The redirect handler task will complete with auth results if we
+      // were redirected from AAD. If not, it will complete with null
+      // We must wait for it to complete before we allow the login to
+      // attempt to acquire a token silently, and then progress to interactive
+      // login (if silent acquisition fails).
+      let result = await redirectHandlerTask;
+      if (result !== null) {
+        authResult = result;
+        return authResult;
+      }
+    }
+    catch (error) {
+      authResultError = null;
+    }
+
     const account = getAccount();
     if (account == null) {
       return null;
@@ -100,6 +118,52 @@ var aadOauth = (function () {
   /// to attempt to refresh the token using an interactive login.
 
   async function login(refreshIfAvailable, useRedirect, onSuccess, onError) {
+    // Try to sign in silently, assuming we have already signed in and have
+    // a cached access token
+    await silentlyAcquireToken()
+
+    if(authResult != null) {
+      // Skip interactive login
+      onSuccess(authResult.accessToken ?? null);
+      return
+    }
+
+    const account = getAccount()
+
+    if (useRedirect) {
+      myMSALObj.acquireTokenRedirect({
+        scopes: tokenRequest.scopes,
+        prompt: tokenRequest.prompt,
+        account: account,
+        extraQueryParameters: tokenRequest.extraQueryParameters,
+        loginHint: tokenRequest.loginHint
+      });
+    } else {
+      // Sign in with popup
+      try {
+        const interactiveAuthResult = await myMSALObj.loginPopup({
+          scopes: tokenRequest.scopes,
+          prompt: tokenRequest.prompt,
+          account: account,
+          extraQueryParameters: tokenRequest.extraQueryParameters,
+          loginHint: tokenRequest.loginHint
+        });
+
+        authResult = interactiveAuthResult;
+
+        onSuccess(authResult.accessToken ?? null);
+      } catch (error) {
+        // rethrow
+        console.warn(error.message);
+        onError(error);
+      }
+    }
+  }
+
+  // Tries to refresh the token. Will call [onError] if a token
+  // could not be acquired or if no cached account credentials exist.
+  // Will call [onSuccess] on success and update the global authResult variable.
+  async function refreshToken(onSuccess, onError) {
     try {
       // The redirect handler task will complete with auth results if we
       // were redirected from AAD. If not, it will complete with null
@@ -122,38 +186,8 @@ var aadOauth = (function () {
     await silentlyAcquireToken()
 
     if(authResult != null) {
-      // Skip interactive login
       onSuccess(authResult.accessToken ?? null);
       return
-    }
-
-    const account = getAccount()
-
-    if (useRedirect) {
-      myMSALObj.acquireTokenRedirect({
-        scopes: tokenRequest.scopes,
-        prompt: tokenRequest.prompt,
-        account: account,
-        extraQueryParameters: tokenRequest.extraQueryParameters
-      });
-    } else {
-      // Sign in with popup
-      try {
-        const interactiveAuthResult = await myMSALObj.loginPopup({
-          scopes: tokenRequest.scopes,
-          prompt: tokenRequest.prompt,
-          account: account,
-          extraQueryParameters: tokenRequest.extraQueryParameters
-        });
-
-        authResult = interactiveAuthResult;
-
-        onSuccess(authResult.accessToken ?? null);
-      } catch (error) {
-        // rethrow
-        console.warn(error.message);
-        onError(error);
-      }
     }
   }
 
@@ -179,7 +213,7 @@ var aadOauth = (function () {
     }
   }
 
-  function logout(onSuccess, onError) {
+  function logout(onSuccess, onError, showPopup) {
     const account = getAccount();
 
     if (!account) {
@@ -190,10 +224,25 @@ var aadOauth = (function () {
     authResult = null;
     authResultError = null;
     tokenRequest.scopes = null;
-    myMSALObj
-      .logout({ account: account })
-      .then((_) => onSuccess())
-      .catch(onError);
+
+    if (showPopup) {
+      myMSALObj
+        .logout({ account: account })
+        .then((_) => onSuccess())
+        .catch(onError);
+    } else {
+      myMSALObj
+        .logoutRedirect({
+          account: account,
+          onRedirectNavigate: (url) => {
+            return false;
+          }
+        })
+        .then((_) => onSuccess())
+        .catch(onError);
+    }
+
+
   }
 
   async function getAccessToken() {
@@ -213,6 +262,7 @@ var aadOauth = (function () {
   return {
     init: init,
     login: login,
+    refreshToken: refreshToken,
     logout: logout,
     getIdToken: getIdToken,
     getAccessToken: getAccessToken,
